@@ -1,0 +1,47 @@
+name: Update BERP Data
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # Runs every day at Midnight UTC
+  workflow_dispatch:      # Allows manual trigger button
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pandas gspread google-auth
+
+      - name: Run Data Processor
+        env:
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: python update_data.py
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # We add the JSON file to the commit
+          git add site_data.json
+          
+          # Commit only if there are changes
+          if [[ -n $(git status -s) ]]; then
+            git commit -m "Update site_data.json from Google Sheets"
+            git push
+          else
+            echo "No changes to commit"
+          fi
