@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BERP Interactive Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f4f9; margin: 0; padding: 20px; }
+        .dashboard-container { max-width: 1400px; margin: auto; }
+        .header { background: #1a5276; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        
+        /* Control Panel Styling */
+        .controls { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+        .control-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 180px; }
+        select { padding: 10px; font-size: 15px; border-radius: 4px; border: 1px solid #ccc; width: 100%; background: #fff; }
+        label { font-weight: bold; color: #34495e; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        /* Grid Layout */
+        .grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); min-height: 400px; position: relative; }
+        
+        /* Metrics Styling */
+        .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .metric-box { text-align: center; padding: 15px; background: #ecf0f1; border-radius: 8px; }
+        .metric-val { font-size: 1.8em; font-weight: bold; color: #2c3e50; }
+        .metric-lbl { color: #7f8c8d; font-size: 0.85em; }
+        
+        /* Specialized Colors */
+        .bg-green { background: #e8f8f5; }
+        .bg-blue { background: #eaf2f8; }
+        .text-green { color: #27ae60; }
+        .text-blue { color: #2980b9; }
+
+        /* Loading Text Styling */
+        .loading-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #bdc3c7; font-size: 1.2em; pointer-events: none; }
+
+        /* --- MOBILE RESPONSIVENESS --- */
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: 1fr; }
+            .controls { flex-direction: column; gap: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <div class="header">
+        <h1>BERP Interactive Dashboard</h1>
+        <p>Real-time Impact Tracking & Visualization</p>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>Calendar Year:</label>
+            <select id="yearFilter" onchange="updateDashboard()">
+                <option value="All">All Years</option>
+                </select>
+        </div>
+
+        <div class="control-group">
+            <label>Implementation Status:</label>
+            <select id="statusFilter" onchange="updateDashboard()">
+                <option value="All">All Projects</option>
+                <option value="Yes">Implemented Only</option>
+                <option value="In Progress">In Progress</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>County:</label>
+            <select id="countyFilter" onchange="updateDashboard()">
+                <option value="All">All Counties</option>
+                </select>
+        </div>
+
+        <div class="control-group">
+            <label style="color:#e67e22;">Map Metric:</label>
+            <select id="metricFilter" onchange="updateDashboard()">
+                <option value="Total_CO2_Tons">CO2 Reduced (Tons)</option>
+                <option value="Total_NOx_lb">NOx Reduced (lbs)</option>
+                
+                <option value="Total Cost Savings">Cost Savings ($)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h3 id="mapTitle" style="margin-top:0;">Utah Impact Map</h3>
+            <div id="utahMap" style="height: 500px;">
+                <div class="loading-text">Loading Map...</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3 style="margin-top:0;">Program Metrics</h3>
+            <div id="metricsBox"><div class="loading-text">Loading Data...</div></div>
+            
+            <h3 style="margin-top:20px;">Cost vs. Savings</h3>
+            <div id="costChart" style="height: 300px;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let globalData = [];
+    const geoJsonUrl = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json"; 
+
+    // 1. Fetch Data
+    d3.json('site_data.json').then(function(data) {
+        globalData = data;
+        populateFilters();
+        updateDashboard();
+    });
+
+    // 2. Populate Dropdowns
+    function populateFilters() {
+        let years = [...new Set(globalData.map(d => d.Year))].filter(y => y > 0).sort((a,b) => b-a);
+        let yearSel = document.getElementById('yearFilter');
+        years.forEach(y => {
+            let opt = document.createElement('option');
+            opt.value = y; opt.innerHTML = y; yearSel.appendChild(opt);
+        });
+
+        let counties = [...new Set(globalData.map(d => d.County))].filter(Boolean).sort();
+        let countySel = document.getElementById('countyFilter');
+        counties.forEach(c => {
+            let opt = document.createElement('option');
+            opt.value = c; opt.innerHTML = c; countySel.appendChild(opt);
+        });
+    }
+
+    // 3. Main Update Function
+    function updateDashboard() {
+        let yearSel = document.getElementById('yearFilter').value;
+        let statusSel = document.getElementById('statusFilter').value;
+        let countySel = document.getElementById('countyFilter').value;
+        let metricSel = document.getElementById('metricFilter').value; 
+
+        // Filter Data
+        let filtered = globalData.filter(d => {
+            let yearMatch = (yearSel === "All") || (d.Year == yearSel);
+            let statusMatch = (statusSel === "All") || (d['Implemented? Yes/No/In Progress'] === statusSel);
+            let countyMatch = (countySel === "All") || (d.County === countySel);
+            return yearMatch && statusMatch && countyMatch;
+        });
+
+        renderMap(filtered, metricSel);
+        renderMetrics(filtered);
+        renderCostChart(filtered);
+    }
+
+    // 4. Render Metrics Box (HIDDEN SO2/PM2.5)
+    function renderMetrics(data) {
+        let uniqueReports = new Set(data.map(d => d['Report Number']));
+        let assessmentCount = uniqueReports.size;
+        let recommendationCount = data.length;
+
+        let totalCO2 = d3.sum(data, d => d.Total_CO2_Tons);
+        let totalSavings = d3.sum(data, d => d['Total Cost Savings']);
+        let totalCars = d3.sum(data, d => d.Cars_Equivalent);
+        
+        let totalNOx = d3.sum(data, d => d.Total_NOx_lb);
+        let totalSO2 = d3.sum(data, d => d.Total_SO2_lb);
+        let totalPM25 = d3.sum(data, d => d.Total_PM25_lb);
+
+        document.getElementById('metricsBox').innerHTML = `
+            <div class="metrics-grid">
+                <div class="metric-box">
+                    <div class="metric-val">${assessmentCount}</div>
+                    <div class="metric-lbl">Assessments</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-val">${recommendationCount}</div>
+                    <div class="metric-lbl">Recommendations</div>
+                </div>
+            </div>
+
+            <div class="metric-box bg-green" style="margin-bottom:15px;">
+                <div class="metric-val text-green">${totalCO2.toFixed(1)}</div>
+                <div class="metric-lbl">Tons CO2 Reduced</div>
+                <div style="font-size:0.8em; color:#7f8c8d; margin-top:5px;">
+                    Equivalent to removing <b>${Math.round(totalCars)}</b> cars
+                </div>
+            </div>
+
+            <div class="metric-box bg-blue" style="margin-bottom:15px;">
+                <div class="metric-val text-blue">$${d3.format(",.0f")(totalSavings)}</div>
+                <div class="metric-lbl">Annual Cost Savings</div>
+            </div>
+
+            <h4 style="margin:10px 0 5px 0; color:#34495e; text-align:center;">Air Quality Impact (lbs)</h4>
+            <div style="display:flex; justify-content:center; gap:10px;">
+                <div class="metric-box" style="padding:10px; width:100px;">
+                    <div class="metric-val" style="font-size:1.2em;">${d3.format(",.0f")(totalNOx)}</div>
+                    <div class="metric-lbl">NOx</div>
+                </div>
+                
+                </div>
+        `;
+    }
+
+    // 5. Render Map
+    function renderMap(data, metric) {
+        document.getElementById('utahMap').innerHTML = '';
+
+        let metricLabels = {
+            'Total_CO2_Tons': 'Tons CO2',
+            'Total_NOx_lb': 'lbs NOx',
+            'Total_SO2_lb': 'lbs SO2',
+            'Total_PM25_lb': 'lbs PM2.5',
+            'Total Cost Savings': 'Savings ($)'
+        };
+        let label = metricLabels[metric] || 'Value';
+
+        document.getElementById('mapTitle').innerText = `Utah Impact: ${label}`;
+
+        let fipsMap = d3.rollup(data, v => d3.sum(v, d => d[metric]), d => d.FIPS);
+        let locations = Array.from(fipsMap.keys());
+        let zValues = Array.from(fipsMap.values());
+        
+        let hoverText = locations.map(fips => {
+            let match = data.find(d => d.FIPS === fips);
+            let val = fipsMap.get(fips);
+            return match ? `${match.County}: ${d3.format(",.1f")(val)} ${label}` : fips;
+        });
+
+        let allUtahFips = ["49001", "49003", "49005", "49007", "49009", "49011", "49013", "49015", "49017", "49019", "49021", "49023", "49025", "49027", "49029", "49031", "49033", "49035", "49037", "49039", "49041", "49043", "49045", "49047", "49049", "49051", "49053", "49055", "49057"];
+        
+        let backgroundTrace = {
+            type: 'choropleth', geojson: geoJsonUrl, locations: allUtahFips, 
+            z: Array(allUtahFips.length).fill(0), colorscale: [['0.0', '#eeeeee'], ['1.0', '#eeeeee']], 
+            showscale: false, marker: { line: { width: 0.5, color: '#bdbdbd' } }, hoverinfo: 'skip'
+        };
+
+        let dataTrace = {
+            type: 'choropleth', geojson: geoJsonUrl, locations: locations, z: zValues, text: hoverText,
+            colorscale: 'Teal', marker: { line: { width: 1, color: 'white' } }, 
+            colorbar: { title: label },
+            hovertemplate: '<b>%{text}</b><extra></extra>' 
+        };
+
+        let layout = {
+            margin: {l:0, r:0, t:0, b:0}, 
+            geo: {
+                projection: { type: 'mercator' },
+                showlakes: false,
+                showframe: false, showcoastlines: false,
+                center: { lon: -111.5, lat: 39.4 }, 
+                lonaxis: { range: [-114.5, -108.5] }, 
+                lataxis: { range: [36.5, 42.5] }
+            },
+            dragmode: false
+        };
+
+        Plotly.newPlot('utahMap', [backgroundTrace, dataTrace], layout, {responsive: true});
+    }
+
+    // 6. Render Cost Chart
+    function renderCostChart(data) {
+        let trace = {
+            x: data.map(d => d['Implementation Costs']),
+            y: data.map(d => d['Total Cost Savings']),
+            mode: 'markers', type: 'scatter', text: data.map(d => d['Recommendation Name']),
+            marker: { size: 12, color: data.map(d => d.Total_CO2_Tons), colorscale: 'Viridis', showscale: false }
+        };
+        Plotly.newPlot('costChart', [trace], {
+            xaxis: {title: 'Implementation Cost', tickprefix: '$'}, 
+            yaxis: {title: 'Annual Savings', tickprefix: '$'},      
+            margin: {l:60, r:20, t:20, b:40}
+        }, {responsive: true});
+    }
+</script>
+
+</body>
+</html>
