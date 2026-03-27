@@ -19,17 +19,23 @@
         body { font-family: 'Segoe UI', sans-serif; background: var(--utah-grey); margin: 0; padding: 20px; color: var(--utah-black); }
         .dashboard-container { max-width: 1400px; margin: auto; }
         
-        /* Updated Header with Logo Placeholder */
+        /* Updated Header with Logo Container */
         .header { background: var(--utah-red); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .header-content { display: flex; align-items: center; justify-content: space-between; }
-        .logo-placeholder { 
-            width: 180px; height: 60px; 
-            background: rgba(255, 255, 255, 0.1); 
-            border: 2px dashed rgba(255, 255, 255, 0.5); 
-            display: flex; align-items: center; justify-content: center; 
-            font-size: 0.9em; font-weight: bold; letter-spacing: 1px;
-            border-radius: 4px;
+        
+        /* UPDATED: Container for the actual logo image */
+        .logo-container { 
+            width: 180px; /* Fixed width to balance the flexbox */
+            display: flex; 
+            align-items: center; 
+            justify-content: flex-start; /* Aligns logo to left of container */
         }
+        .logo-container img {
+            max-height: 60px; /* Constraints height to fit header nicely */
+            width: auto;      /* Maintains aspect ratio */
+            object-fit: contain; /* Ensures entire image fits */
+        }
+
         .header-text { text-align: center; flex-grow: 1; }
         .header-spacer { width: 180px; } /* Balances the flexbox so text stays centered */
 
@@ -74,8 +80,8 @@
     
     <div class="header">
         <div class="header-content">
-            <div class="logo-placeholder">
-                [ LOGO HERE ]
+            <div class="logo-container">
+                <img src="U-CREW.png" alt="U-CREW Logo">
             </div>
             <div class="header-text">
                 <h1 style="margin:0;">BERP Interactive Dashboard</h1>
@@ -145,12 +151,10 @@
     // 1. Fetch Data and Read Last Modified Date
     fetch('site_data.json')
         .then(response => {
-            // Attempt to get the file's last modified date from the server headers
             let lastMod = response.headers.get('Last-Modified');
             if(lastMod) {
                 document.getElementById('lastUpdatedDate').innerText = new Date(lastMod).toLocaleString();
             } else {
-                // Fallback to today's date if server doesn't provide header
                 document.getElementById('lastUpdatedDate').innerText = new Date().toLocaleDateString();
             }
             return response.json();
@@ -186,10 +190,8 @@
         let countySel = document.getElementById('countyFilter').value;
         let metricSel = document.getElementById('metricFilter').value; 
 
-        // Filter Data
         let filtered = globalData.filter(d => {
             let yearMatch = (yearSel === "All") || (d.Year == yearSel);
-            // Matches against the 'Implemented? Yes/No/In Progress' column in Google Sheets
             let statusMatch = (statusSel === "All") || (d['Implemented? Yes/No/In Progress'] === statusSel);
             let countyMatch = (countySel === "All") || (d.County === countySel);
             return yearMatch && statusMatch && countyMatch;
@@ -199,7 +201,7 @@
         renderMetrics(filtered);
     }
 
-    // 4. Render Metrics Box (RESTRUCTURED LAYOUT)
+    // 4. Render Metrics Box 
     function renderMetrics(data) {
         let uniqueReports = new Set(data.map(d => d['Report Number']));
         let assessmentCount = uniqueReports.size;
@@ -239,7 +241,7 @@
         `;
     }
 
-    // 5. Render Map (Updated to Utah Red Colorscale)
+    // 5. Render Map 
     function renderMap(data, metric) {
         document.getElementById('utahMap').innerHTML = '';
 
@@ -270,7 +272,6 @@
             showscale: false, marker: { line: { width: 0.5, color: '#ffffff' } }, hoverinfo: 'skip'
         };
 
-        // Switched from 'Teal' to 'Reds' to match the University branding
         let dataTrace = {
             type: 'choropleth', geojson: geoJsonUrl, locations: locations, z: zValues, text: hoverText,
             colorscale: 'Reds', marker: { line: { width: 1, color: '#333' } }, 
