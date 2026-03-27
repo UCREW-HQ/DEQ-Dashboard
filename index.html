@@ -20,7 +20,7 @@
         .dashboard-container { max-width: 1400px; margin: auto; }
         
         /* Updated Header with Logo Container */
-        .header { background: var(--utah-grey); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--utah-black); }
+        .header { background: var(--utah-grey); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
         .header-content { display: flex; align-items: center; justify-content: space-between; }
         
         .logo-container { 
@@ -232,7 +232,7 @@
             <div style="display:flex; gap:15px;">
                 <div class="metric-box" style="flex:1;">
                     <div class="metric-val">${d3.format(",.0f")(roundedCO2)}</div>
-                    <div class="metric-lbl">CO<sub>2</sub>, tons</div>
+                    <div class="metric-lbl">CO<sub>2</sub>, Tons</div>
                 </div>
                 <div class="metric-box" style="flex:1;">
                     <div class="metric-val">${d3.format(",.0f")(roundedNOx)}</div>
