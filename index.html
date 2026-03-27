@@ -117,8 +117,8 @@
         <div class="control-group">
             <label style="color: var(--utah-red);">Map Metric:</label>
             <select id="metricFilter" onchange="updateDashboard()">
-                <option value="Total_CO2_Tons">CO2 Reduced (Tons)</option>
-                <option value="Total_NOx_lb">NOx Reduced (lbs)</option>
+                <option value="Total_CO2_Tons">CO<sub>2</sub>sub> Reduced (Tons)</option>
+                <option value="Total_NOx_lb">NO<sub>x</sub>sub> Reduced (lbs)</option>
                 <option value="Total Cost Savings">Cost Savings ($)</option>
             </select>
         </div>
@@ -247,8 +247,8 @@
         document.getElementById('utahMap').innerHTML = '';
 
         let metricLabels = {
-            'Total_CO2_Tons': 'Tons CO2',
-            'Total_NOx_lb': 'lbs NOx',
+            'Total_CO2_Tons': 'Tons CO<sub>2</sub>',
+            'Total_NOx_lb': 'lbs NO<sub>x</sub>',
             'Total Cost Savings': 'Savings ($)'
         };
         let label = metricLabels[metric] || 'Value';
