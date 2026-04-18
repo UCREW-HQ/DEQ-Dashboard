@@ -1,9 +1,13 @@
-name: Update BERP Data
+name: Update Pollution Report
 
 on:
   schedule:
-    - cron: '0 6 * * *' # Runs every day at Midnight UTC
+    - cron: '0 0 * * *' # Runs every day at Midnight UTC
   workflow_dispatch:      # Allows manual trigger button
+
+# --- NEW: Fix for the Node.js 20 Deprecation Warning ---
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
   contents: write
@@ -17,13 +21,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5 # Updated to v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
         run: |
-          pip install pandas gspread google-auth
+          pip install pandas gspread google-auth numpy
 
       - name: Run Data Processor
         env:
